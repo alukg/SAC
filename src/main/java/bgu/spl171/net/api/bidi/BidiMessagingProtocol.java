@@ -5,6 +5,8 @@
  */
 package bgu.spl171.net.api.bidi;
 
+import java.io.FileNotFoundException;
+
 /**
  *
  * @author bennyl
@@ -13,7 +15,7 @@ public interface BidiMessagingProtocol<T>  {
 
     void start(int connectionId, Connections<T> connections);
     
-    void process(T message);
+    void process(T message) throws FileNotFoundException;
 	
 	/**
      * @return true if the connection should be terminated

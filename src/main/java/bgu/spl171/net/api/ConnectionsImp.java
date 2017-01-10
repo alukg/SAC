@@ -3,11 +3,14 @@ package bgu.spl171.net.api;
 import bgu.spl171.net.api.bidi.Connections;
 
 import java.util.HashMap;
+import java.util.concurrent.atomic.AtomicInteger;
 
 public class ConnectionsImp implements Connections {
-    HashMap<String,Integer> clients;
+    private HashMap<String,Integer> clients;
+    private int id = 1;
 
-    public ConnectionsImp(){
+    public ConnectionsImp()
+    {
         clients = new HashMap<>();
     }
 
@@ -24,5 +27,13 @@ public class ConnectionsImp implements Connections {
     @Override
     public void disconnect(int connectionId) {
 
+    }
+
+    public HashMap<String, Integer> getClients() {
+        return clients;
+    }
+
+    synchronized public int getID(){
+        return id++;
     }
 }
