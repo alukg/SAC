@@ -22,33 +22,42 @@ public class MessageEncoderDecoderImp implements MessageEncoderDecoder<Packet> {
     @Override
     public byte[] encode(Packet message) {
         byte[] result = shortToBytes(message.getOpCode());
+        byte[] ans;
 
         switch (message.getOpCode()){
             case 1:
                 RRQ RRQPack = (RRQ)message;
-                return connectArrays(result,RRQPack.getFileName().getBytes());
+                ans = connectArrays(result,RRQPack.getFileName().getBytes());
+                break;
             case 2:
                 WRQ WRQPack = (WRQ)message;
-                return connectArrays(result,WRQPack.getFileName().getBytes());
+                ans = connectArrays(result,WRQPack.getFileName().getBytes());
+                break;
             case 3:
                 DATA DATAPack = (DATA)message;
                 byte[] tempDataArr = connectArrays(result,shortToBytes(DATAPack.getBlock()));
-                return connectArrays(tempDataArr,DATAPack.getData());
+                ans = connectArrays(tempDataArr,DATAPack.getData());
+                break;
             case 4:
                 ACK ACKPack = (ACK)message;
-                return connectArrays(result,shortToBytes(ACKPack.getBlock()));
+                ans = connectArrays(result,shortToBytes(ACKPack.getBlock()));
+                break;
             case 5:
                 ERROR ErrorPack = (ERROR)message;
                 byte[] tempErrorArr = connectArrays(result,shortToBytes(ErrorPack.getErrorCode()));
-                return connectArrays(tempErrorArr,ErrorPack.getErrorMessage().getBytes());
+                ans = connectArrays(tempErrorArr,ErrorPack.getErrorMessage().getBytes());
+                break;
             case 6:
-                return result;
+                ans = result;
+                break;
             case 7:
                 LOGRQ LOGRQPack = (LOGRQ)message;
-                return connectArrays(result,LOGRQPack.getUserName().getBytes());
+                ans = connectArrays(result,LOGRQPack.getUserName().getBytes());
+                break;
             case 8:
                 DELRQ DELRQPack = (DELRQ)message;
-                return connectArrays(result,DELRQPack.getFileName().getBytes());
+                ans = connectArrays(result,DELRQPack.getFileName().getBytes());
+                break;
             case 9:
                 BCAST BCASTPack = (BCAST)message;
                 byte[] tempBCASTArr;
@@ -56,12 +65,21 @@ public class MessageEncoderDecoderImp implements MessageEncoderDecoder<Packet> {
                      tempBCASTArr = connectArrays(result,"1".getBytes());
                 else
                     tempBCASTArr = connectArrays(result,"0".getBytes());
-                return connectArrays(tempBCASTArr,BCASTPack.getFileName().getBytes());
+                ans = connectArrays(tempBCASTArr,BCASTPack.getFileName().getBytes());
+                break;
             case 10:
-                return result;
+                ans = result;
+                break;
             default:
-                return null;
+                ans = null;
+                break;
         }
+
+        if(ans != null){
+            ans = connectArrays(ans,"0".getBytes());
+        }
+
+        return ans;
     }
 
     private void pushByte(byte nextByte) {
