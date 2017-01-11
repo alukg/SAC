@@ -17,7 +17,6 @@ public class BlockingConnectionHandler<T> implements Runnable, ConnectionHandler
     private final Socket sock;
     private BufferedInputStream in;
     private BufferedOutputStream out;
-    private int id;
     private volatile boolean connected = true;
 
     public BlockingConnectionHandler(Socket sock, MessageEncoderDecoder<T> reader, BidiMessagingProtocol<T> protocol) {
