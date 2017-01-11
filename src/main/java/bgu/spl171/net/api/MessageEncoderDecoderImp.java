@@ -3,21 +3,72 @@ package bgu.spl171.net.api;
 import bgu.spl171.net.api.packets.*;
 import com.sun.deploy.util.ArrayUtil;
 
+import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 
 public class MessageEncoderDecoderImp implements MessageEncoderDecoder<Packet> {
     private byte[] bytes = new byte[1 << 10];
-    private int len = 0;
-
+    private int len = 0, opCounter=2;
+    private short packetNum =-1;
+    Boolean dataBool = false;
     @Override
     public Packet decodeNextByte(byte nextByte) {
-        if (nextByte == '0') {
-            return popPacket();
+
+        switch (packetNum) {
+            case -1:
+                if (opCounter > 0) {
+                    pushByte(nextByte);
+                    opCounter--;
+                }
+
+                if (opCounter == 0)
+                    packetNum = bytesToShort(Arrays.copyOfRange(bytes, 0, 2));
+                if (packetNum == 6 || packetNum == 10)
+                    return popPacket();
+
+            case 1:
+            case 2:
+            case 7:
+            case 8:
+                if (nextByte == '0') {
+                    return popPacket();
+                }
+                pushByte(nextByte);
+
+            case 3:
+
+                if (opCounter < 2 && !dataBool) {
+                    pushByte(nextByte);
+                    opCounter++;
+                }
+                if (opCounter == 2 && !dataBool) {
+                    opCounter = bytesToShort(Arrays.copyOfRange(bytes, 0, 2)) + 2;
+                    dataBool = true;
+                }
+                else
+                {
+                    pushByte(nextByte);
+                    opCounter--;
+
+                    if (opCounter == 0)
+                        return popPacket();
+                }
+
+            case 4:
+                pushByte(nextByte);
+                opCounter++;
+
+                if (opCounter == 2)
+                    return popPacket();
+
+
         }
-        pushByte(nextByte);
         return null;
     }
+
+
+
 
     @Override
     public byte[] encode(Packet message) {
@@ -94,6 +145,8 @@ public class MessageEncoderDecoderImp implements MessageEncoderDecoder<Packet> {
         short opCode = bytesToShort(Arrays.copyOfRange(bytes,0,2));
         int tempLen = len;
         len = 0;
+        opCounter =2;
+        packetNum = -1;
 
         switch (opCode) {
             case 1:
