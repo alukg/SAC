@@ -152,4 +152,5 @@ public class BidiMessagingProtocalImp implements BidiMessagingProtocol<Packet> {
         }
         return concByte;
     }
+
 }

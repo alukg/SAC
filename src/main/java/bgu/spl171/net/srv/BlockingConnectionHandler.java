@@ -2,6 +2,7 @@ package bgu.spl171.net.srv;
 
 import bgu.spl171.net.api.MessageEncoderDecoder;
 import bgu.spl171.net.api.MessagingProtocol;
+import bgu.spl171.net.api.bidi.BidiMessagingProtocol;
 import bgu.spl171.net.srv.bidi.ConnectionHandler;
 
 import java.io.BufferedInputStream;
@@ -11,14 +12,15 @@ import java.net.Socket;
 
 public class BlockingConnectionHandler<T> implements Runnable, ConnectionHandler<T> {
 
-    private final MessagingProtocol<T> protocol;
+    private final BidiMessagingProtocol<T> protocol;
     private final MessageEncoderDecoder<T> encdec;
     private final Socket sock;
     private BufferedInputStream in;
     private BufferedOutputStream out;
+    private int id;
     private volatile boolean connected = true;
 
-    public BlockingConnectionHandler(Socket sock, MessageEncoderDecoder<T> reader, MessagingProtocol<T> protocol) {
+    public BlockingConnectionHandler(Socket sock, MessageEncoderDecoder<T> reader, BidiMessagingProtocol<T> protocol) {
         this.sock = sock;
         this.encdec = reader;
         this.protocol = protocol;
@@ -36,11 +38,7 @@ public class BlockingConnectionHandler<T> implements Runnable, ConnectionHandler
             while (connected && (read = in.read()) >= 0) {
                 T nextMessage = encdec.decodeNextByte((byte) read);
                 if (nextMessage != null) {
-                    T response = protocol.process(nextMessage);
-                    if (response != null) {
-                        out.write(encdec.encode(response));
-                        out.flush();
-                    }
+                    protocol.process(nextMessage);
                 }
             }
 
@@ -58,6 +56,15 @@ public class BlockingConnectionHandler<T> implements Runnable, ConnectionHandler
 
     @Override
     public void send(T msg) {
-
+        try {
+            if (msg != null) {
+                out.write(encdec.encode(msg));
+                out.flush();
+            }
+        }
+        catch(IOException e){
+            e.printStackTrace();
+        }
     }
+
 }
