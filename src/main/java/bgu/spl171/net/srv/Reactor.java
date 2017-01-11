@@ -2,7 +2,6 @@ package bgu.spl171.net.srv;
 
 import bgu.spl171.net.api.MessageEncoderDecoder;
 import bgu.spl171.net.api.MessagingProtocol;
-
 import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.nio.channels.ClosedSelectorException;
@@ -38,7 +37,7 @@ public class Reactor<T> implements Server<T> {
 
     @Override
     public void serve() {
-
+        selectorThread = Thread.currentThread();
         try (Selector selector = Selector.open();
              ServerSocketChannel serverSock = ServerSocketChannel.open()) {
 
@@ -111,10 +110,11 @@ public class Reactor<T> implements Server<T> {
             if (task != null) {
                 pool.submit(handler, task);
             }
-        } else {
-            handler.continueWrite();
         }
 
+        if (key.isWritable()) {
+            handler.continueWrite();
+        }
     }
 
     private void runSelectionThreadTasks() {
