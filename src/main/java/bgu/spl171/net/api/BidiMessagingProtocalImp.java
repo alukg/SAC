@@ -13,14 +13,18 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Arrays;
 import java.util.HashMap;
+import java.util.Iterator;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentSkipListSet;
 import java.util.concurrent.LinkedBlockingQueue;
 
 public class BidiMessagingProtocalImp implements BidiMessagingProtocol<Packet> {
 
     private ConnectionsImp connections;
     private int connectionId;
-    private static HashMap<Integer, String> activeClients = new HashMap<>();
+    private static ConcurrentHashMap<Integer, String> activeClients = new ConcurrentHashMap<>();
 
+    private ConcurrentSkipListSet<String> writingProcess;
     private LinkedBlockingQueue<DATA> readDataPacks;
     private LinkedBlockingQueue<byte[]> writeDataPacks;
     private String fileName;
@@ -31,6 +35,7 @@ public class BidiMessagingProtocalImp implements BidiMessagingProtocol<Packet> {
         this.connectionId = connectionId;
         readDataPacks = new LinkedBlockingQueue<>();
         writeDataPacks = new LinkedBlockingQueue<>();
+        writingProcess = new ConcurrentSkipListSet<>();
     }
 
     @Override
@@ -42,7 +47,7 @@ public class BidiMessagingProtocalImp implements BidiMessagingProtocol<Packet> {
             if (activeClients.containsValue(LOGRQPack.getUserName())) {
                 connections.send(connectionId, new ERROR((short) 7, "User already logged in - Login username already connected."));
             } else {
-                activeClients.put(connectionId,LOGRQPack.getUserName());
+                activeClients.put(connectionId, LOGRQPack.getUserName());
                 connections.send(connectionId, new ACK((short) 0));
             }
         } else {
@@ -50,11 +55,17 @@ public class BidiMessagingProtocalImp implements BidiMessagingProtocol<Packet> {
                 switch (message.getOpCode()) {
                     case 1:
                         RRQ RRQPack = (RRQ) message;
-                        byte[] data;
+                        byte[] data = null;
                         try {
                             Path path = Paths.get("/Files", RRQPack.getFileName());
-                            data = Files.readAllBytes(path);
-                            sendDataPacks(data);
+                            boolean canRead;
+                            synchronized (activeClients) {
+                                canRead = !checkIfWriting(RRQPack.getFileName());
+                                if (canRead)
+                                    data = Files.readAllBytes(path);
+                            }
+                            if (canRead)
+                                sendDataPacks(data);
                         } catch (FileNotFoundException e) {
                             connections.send(connectionId, new ERROR((short) 1, "File not found - RRQ of non-existing file."));
                         } catch (IOException e) {
@@ -65,12 +76,18 @@ public class BidiMessagingProtocalImp implements BidiMessagingProtocol<Packet> {
                         WRQ WRQPack = (WRQ) message;
                         File f = new File("/Files/" + WRQPack.getFileName());
                         try {
-                            if (f.createNewFile()) {
-                                fileName = WRQPack.getFileName();
-                                connections.send(connectionId, new ACK((short) 0));
-                            } else {
-                                connections.send(connectionId, new ERROR((short) 5, "File already exists - File name exists on WRQ."));
+                            boolean isCreated;
+                            synchronized (activeClients) {
+                                isCreated = !checkIfWriting(WRQPack.getFileName()) && f.createNewFile();
+                                if (isCreated) {
+                                    fileName = WRQPack.getFileName();
+                                    writingProcess.add(fileName);
+                                }
                             }
+                            if (isCreated)
+                                connections.send(connectionId, new ACK((short) 0));
+                            else
+                                connections.send(connectionId, new ERROR((short) 5, "File already exists - File name exists on WRQ."));
                         } catch (IOException e) {
                             connections.send(connectionId, new ERROR((short) 2, "Access violation - File cannot be written, read or deleted."));
                         }
@@ -114,8 +131,11 @@ public class BidiMessagingProtocalImp implements BidiMessagingProtocol<Packet> {
                         try {
                             String tempFile = "/Files/" + DELRQPack.getFileName();
                             File fileTemp = new File(tempFile);
-                            if (fileTemp.exists()) {
-                                fileTemp.delete();
+                            boolean canDelete;
+                            synchronized (activeClients) {
+                                canDelete = !checkIfWriting(DELRQPack.getFileName()) && fileTemp.delete();
+                            }
+                            if (canDelete) {
                                 connections.send(connectionId, new ACK((short) 0));
                                 connections.send(connectionId, new BCAST(false, DELRQPack.getFileName()));
                             } else {
@@ -172,5 +192,14 @@ public class BidiMessagingProtocalImp implements BidiMessagingProtocol<Packet> {
         byte[] ArrayToSend = Arrays.copyOfRange(data, data.length - dataLength, dataLength);
         readDataPacks.add(new DATA((short) dataLength, packetCount, ArrayToSend));
         connections.send(connectionId, readDataPacks.poll());
+    }
+
+    private boolean checkIfWriting(String str) {
+        Iterator<String> iterator = writingProcess.iterator();
+        while (iterator.hasNext()) {
+            String element = iterator.next();
+            if (element.equals(str)) return true;
+        }
+        return false;
     }
 }
