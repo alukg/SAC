@@ -20,6 +20,8 @@ import java.util.concurrent.LinkedBlockingQueue;
 
 public class BidiMessagingProtocalImp implements BidiMessagingProtocol<Packet> {
 
+    private boolean shouldTerminate = false;
+
     private ConnectionsImp connections;
     private int connectionId;
     private static ConcurrentHashMap<Integer, String> activeClients = new ConcurrentHashMap<>();
@@ -147,6 +149,7 @@ public class BidiMessagingProtocalImp implements BidiMessagingProtocol<Packet> {
                         break;
                     case 10:
                         activeClients.remove(connectionId);
+                        shouldTerminate = true;
                         connections.send(connectionId, new ACK((short) 0));
                         break;
                     default:
@@ -159,7 +162,7 @@ public class BidiMessagingProtocalImp implements BidiMessagingProtocol<Packet> {
 
     @Override
     public boolean shouldTerminate() {
-        return false;
+        return shouldTerminate;
     }
 
     private byte[] concateBytesArray(LinkedBlockingQueue<byte[]> byteArr) {
