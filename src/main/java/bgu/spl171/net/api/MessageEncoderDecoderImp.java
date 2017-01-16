@@ -106,6 +106,7 @@ public class MessageEncoderDecoderImp implements MessageEncoderDecoder<Packet> {
         len = 0;
         opCounter =2;
         packetNum = -1;
+        dataBool = false;
 
         switch (opCode) {
             case 1:
