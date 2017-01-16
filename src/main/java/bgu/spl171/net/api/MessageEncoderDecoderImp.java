@@ -14,19 +14,16 @@ public class MessageEncoderDecoderImp implements MessageEncoderDecoder<Packet> {
     Boolean dataBool = false;
     @Override
     public Packet decodeNextByte(byte nextByte) {
-
         switch (packetNum) {
             case -1:
                 if (opCounter > 0) {
                     pushByte(nextByte);
                     opCounter--;
                 }
-
                 if (opCounter == 0)
                     packetNum = bytesToShort(Arrays.copyOfRange(bytes, 0, 2));
                 if (packetNum == 6 || packetNum == 10)
                     return popPacket();
-
             case 1:
             case 2:
             case 7:
@@ -35,9 +32,7 @@ public class MessageEncoderDecoderImp implements MessageEncoderDecoder<Packet> {
                     return popPacket();
                 }
                 pushByte(nextByte);
-
             case 3:
-
                 if (opCounter < 2 && !dataBool) {
                     pushByte(nextByte);
                     opCounter++;
@@ -50,19 +45,14 @@ public class MessageEncoderDecoderImp implements MessageEncoderDecoder<Packet> {
                 {
                     pushByte(nextByte);
                     opCounter--;
-
                     if (opCounter == 0)
                         return popPacket();
                 }
-
             case 4:
                 pushByte(nextByte);
                 opCounter++;
-
                 if (opCounter == 2)
                     return popPacket();
-
-
         }
         return null;
     }
@@ -76,39 +66,19 @@ public class MessageEncoderDecoderImp implements MessageEncoderDecoder<Packet> {
         byte[] ans;
 
         switch (message.getOpCode()){
-//            case 1:
-//                RRQ RRQPack = (RRQ)message;
-//                ans = connectArrays(result,RRQPack.getFileName().getBytes());
-//                break;
-//            case 2:
-//                WRQ WRQPack = (WRQ)message;
-//                ans = connectArrays(result,WRQPack.getFileName().getBytes());
-//                break;
             case 3:
                 DATA DATAPack = (DATA)message;
-                byte[] tempDataArr = connectArrays(result,shortToBytes(DATAPack.getBlock()));
-                ans = connectArrays(tempDataArr,DATAPack.getData());
-                break;
+                result = connectArrays(result,shortToBytes(DATAPack.getPacketSize()));
+                result = connectArrays(result,shortToBytes(DATAPack.getBlock()));
+                return connectArrays(result,DATAPack.getData());
             case 4:
                 ACK ACKPack = (ACK)message;
-                ans = connectArrays(result,shortToBytes(ACKPack.getBlock()));
-                break;
+                return connectArrays(result,shortToBytes(ACKPack.getBlock()));
             case 5:
                 ERROR ErrorPack = (ERROR)message;
                 byte[] tempErrorArr = connectArrays(result,shortToBytes(ErrorPack.getErrorCode()));
                 ans = connectArrays(tempErrorArr,ErrorPack.getErrorMessage().getBytes());
-                break;
-//            case 6:
-//                ans = result;
-//                break;
-//            case 7:
-//                LOGRQ LOGRQPack = (LOGRQ)message;
-//                ans = connectArrays(result,LOGRQPack.getUserName().getBytes());
-//                break;
-//            case 8:
-//                DELRQ DELRQPack = (DELRQ)message;
-//                ans = connectArrays(result,DELRQPack.getFileName().getBytes());
-//                break;
+                return connectArrays(ans,"0".getBytes());
             case 9:
                 BCAST BCASTPack = (BCAST)message;
                 byte[] tempBCASTArr;
@@ -117,20 +87,10 @@ public class MessageEncoderDecoderImp implements MessageEncoderDecoder<Packet> {
                 else
                     tempBCASTArr = connectArrays(result,"0".getBytes());
                 ans = connectArrays(tempBCASTArr,BCASTPack.getFileName().getBytes());
-                break;
-//            case 10:
-//                ans = result;
-//                break;
+                return connectArrays(ans,"0".getBytes());
             default:
-                ans = null;
-                break;
+                return null;
         }
-
-        if(ans != null){
-            ans = connectArrays(ans,"0".getBytes());
-        }
-
-        return ans;
     }
 
     private void pushByte(byte nextByte) {
@@ -141,7 +101,6 @@ public class MessageEncoderDecoderImp implements MessageEncoderDecoder<Packet> {
     }
 
     private Packet popPacket() {
-
         short opCode = bytesToShort(Arrays.copyOfRange(bytes,0,2));
         int tempLen = len;
         len = 0;
@@ -172,7 +131,7 @@ public class MessageEncoderDecoderImp implements MessageEncoderDecoder<Packet> {
                 return new DELRQ(new String(bytes, 2, tempLen - 3, StandardCharsets.UTF_8));
             case 9:
                 String bool = new String(bytes, 2, 1, StandardCharsets.UTF_8);
-                boolean delOrAdd = true;
+                boolean delOrAdd;
                 if(bool == "1"){
                     delOrAdd = true;
                 }

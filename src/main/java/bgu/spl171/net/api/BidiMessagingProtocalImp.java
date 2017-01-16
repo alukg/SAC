@@ -15,6 +15,7 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.ConcurrentSkipListSet;
 import java.util.concurrent.LinkedBlockingQueue;
 
@@ -25,8 +26,8 @@ public class BidiMessagingProtocalImp implements BidiMessagingProtocol<Packet> {
     private ConnectionsImp connections;
     private int connectionId;
     private static ConcurrentHashMap<Integer, String> activeClients = new ConcurrentHashMap<>();
+    private static ConcurrentLinkedQueue<String> writingProcess = new ConcurrentLinkedQueue<>();
 
-    private ConcurrentSkipListSet<String> writingProcess;
     private LinkedBlockingQueue<DATA> readDataPacks;
     private LinkedBlockingQueue<byte[]> writeDataPacks;
     private String fileName;
@@ -37,7 +38,6 @@ public class BidiMessagingProtocalImp implements BidiMessagingProtocol<Packet> {
         this.connectionId = connectionId;
         readDataPacks = new LinkedBlockingQueue<>();
         writeDataPacks = new LinkedBlockingQueue<>();
-        writingProcess = new ConcurrentSkipListSet<>();
     }
 
     @Override
@@ -62,7 +62,7 @@ public class BidiMessagingProtocalImp implements BidiMessagingProtocol<Packet> {
                             Path path = Paths.get("/Files", RRQPack.getFileName());
                             boolean canRead;
                             synchronized (activeClients) {
-                                canRead = !checkIfWriting(RRQPack.getFileName());
+                                canRead = !writingProcess.contains(RRQPack.getFileName());
                                 if (canRead)
                                     data = Files.readAllBytes(path);
                             }
@@ -80,7 +80,7 @@ public class BidiMessagingProtocalImp implements BidiMessagingProtocol<Packet> {
                         try {
                             boolean isCreated;
                             synchronized (activeClients) {
-                                isCreated = !checkIfWriting(WRQPack.getFileName()) && f.createNewFile();
+                                isCreated = !writingProcess.contains(WRQPack.getFileName()) && f.createNewFile();
                                 if (isCreated) {
                                     fileName = WRQPack.getFileName();
                                     writingProcess.add(fileName);
@@ -135,7 +135,7 @@ public class BidiMessagingProtocalImp implements BidiMessagingProtocol<Packet> {
                             File fileTemp = new File(tempFile);
                             boolean canDelete;
                             synchronized (activeClients) {
-                                canDelete = !checkIfWriting(DELRQPack.getFileName()) && fileTemp.delete();
+                                canDelete = !writingProcess.contains(DELRQPack.getFileName()) && fileTemp.delete();
                             }
                             if (canDelete) {
                                 connections.send(connectionId, new ACK((short) 0));
@@ -197,12 +197,4 @@ public class BidiMessagingProtocalImp implements BidiMessagingProtocol<Packet> {
         connections.send(connectionId, readDataPacks.poll());
     }
 
-    private boolean checkIfWriting(String str) {
-        Iterator<String> iterator = writingProcess.iterator();
-        while (iterator.hasNext()) {
-            String element = iterator.next();
-            if (element.equals(str)) return true;
-        }
-        return false;
-    }
 }
