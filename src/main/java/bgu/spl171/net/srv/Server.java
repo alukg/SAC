@@ -1,8 +1,11 @@
 package bgu.spl171.net.srv;
 
+import bgu.spl171.net.api.BidiMessagingProtocalImp;
 import bgu.spl171.net.api.MessageEncoderDecoder;
+import bgu.spl171.net.api.MessageEncoderDecoderImp;
 import bgu.spl171.net.api.MessagingProtocol;
 import bgu.spl171.net.api.bidi.BidiMessagingProtocol;
+import bgu.spl171.net.api.packets.Packet;
 
 import java.io.Closeable;
 import java.util.function.Supplier;
@@ -25,7 +28,7 @@ public interface Server<T> extends Closeable {
     public static <T> Server<T>  threadPerClient(
             int port,
             Supplier<BidiMessagingProtocol<T>> protocolFactory,
-            Supplier<MessageEncoderDecoder<T> > encoderDecoderFactory) {
+            Supplier<MessageEncoderDecoder<T>> encoderDecoderFactory) {
 
         return new BaseServer<T>(port, protocolFactory, encoderDecoderFactory) {
             @Override
@@ -51,6 +54,12 @@ public interface Server<T> extends Closeable {
             Supplier<BidiMessagingProtocol<T>> protocolFactory,
             Supplier<MessageEncoderDecoder<T>> encoderDecoderFactory) {
         return new Reactor<T>(nthreads, port, protocolFactory, encoderDecoderFactory);
+    }
+    public static void main(String[] args) {
+        Supplier<BidiMessagingProtocol<Packet>> protocolFactory = () -> new BidiMessagingProtocalImp();
+        Supplier<MessageEncoderDecoder<Packet>> encoderDecoderFactory = () -> new MessageEncoderDecoderImp();
+        Server<Packet> tpc = threadPerClient(7777,protocolFactory ,encoderDecoderFactory);
+        tpc.serve();
     }
 
 }
