@@ -32,9 +32,7 @@ public interface Server<T> extends Closeable {
 
         return new BaseServer<T>(port, protocolFactory, encoderDecoderFactory) {
             @Override
-            protected void execute(BlockingConnectionHandler<T>  handler) {
-                new Thread(handler).start();
-            }
+            protected void execute(BlockingConnectionHandler<T>  handler) {new Thread(handler).start();}
         };
 
     }
@@ -58,7 +56,7 @@ public interface Server<T> extends Closeable {
     public static void main(String[] args) {
         Supplier<BidiMessagingProtocol<Packet>> protocolFactory = () -> new BidiMessagingProtocalImp();
         Supplier<MessageEncoderDecoder<Packet>> encoderDecoderFactory = () -> new MessageEncoderDecoderImp();
-        Server<Packet> tpc = threadPerClient(7778,protocolFactory ,encoderDecoderFactory);
+        Server<Packet> tpc = threadPerClient(7777,protocolFactory ,encoderDecoderFactory);
         tpc.serve();
     }
 

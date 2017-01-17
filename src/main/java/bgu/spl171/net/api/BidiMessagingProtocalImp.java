@@ -102,7 +102,8 @@ public class BidiMessagingProtocalImp implements BidiMessagingProtocol<Packet> {
                         if (DATAPack.getPacketSize() != 512) {
                             try (FileOutputStream fos = new FileOutputStream("/Files/" + fileName)) {
                                 fos.write(concateBytesArray(writeDataPacks));
-                                connections.send(connectionId, new BCAST(true, fileName));
+                                for(ConcurrentHashMap.Entry<Integer,String> client : activeClients.entrySet())
+                                    connections.send(client.getKey(), new BCAST(true, fileName));
                             } catch (FileNotFoundException e) {
                                 e.printStackTrace();
                                 throw new FileNotFoundException(e.getMessage());
@@ -140,7 +141,8 @@ public class BidiMessagingProtocalImp implements BidiMessagingProtocol<Packet> {
                             }
                             if (canDelete) {
                                 connections.send(connectionId, new ACK((short) 0));
-                                connections.send(connectionId, new BCAST(false, DELRQPack.getFileName()));
+                                for(ConcurrentHashMap.Entry<Integer,String> client : activeClients.entrySet())
+                                    connections.send(client.getKey(), new BCAST(false, fileName));
                             } else {
                                 connections.send(connectionId, new ERROR((short) 1, "File not found - DELRQ of non-existing file."));
                             }
@@ -150,8 +152,9 @@ public class BidiMessagingProtocalImp implements BidiMessagingProtocol<Packet> {
                         break;
                     case 10:
                         activeClients.remove(connectionId);
-                        shouldTerminate = true;
                         connections.send(connectionId, new ACK((short) 0));
+                        connections.disconnect(connectionId);
+                        shouldTerminate = true;
                         break;
                     default:
                         connections.send(connectionId, new ERROR((short) 4, "Illegal TFTP operation - Unknown Opcode."));
