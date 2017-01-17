@@ -42,6 +42,7 @@ public class BidiMessagingProtocalImp implements BidiMessagingProtocol<Packet> {
 
     @Override
     public void process(Packet message) throws FileNotFoundException {
+        System.out.println("process message");
         if (message == null) {
             connections.send(connectionId, new ERROR((short) 4, "Illegal TFTP operation - Unknown Opcode."));
         } else if (message.getOpCode() == 7) {
@@ -153,6 +154,7 @@ public class BidiMessagingProtocalImp implements BidiMessagingProtocol<Packet> {
                         connections.send(connectionId, new ACK((short) 0));
                         break;
                     default:
+                        connections.send(connectionId, new ERROR((short) 4, "Illegal TFTP operation - Unknown Opcode."));
                         break;
                 }
             } else
