@@ -60,7 +60,7 @@ public class BidiMessagingProtocalImp implements BidiMessagingProtocol<Packet> {
                         RRQ RRQPack = (RRQ) message;
                         byte[] data = null;
                         try {
-                            Path path = Paths.get("/Files", RRQPack.getFileName());
+                            Path path = Paths.get("Files", RRQPack.getFileName());
                             boolean canRead;
                             synchronized (activeClients) {
                                 canRead = !writingProcess.contains(RRQPack.getFileName());
@@ -77,7 +77,7 @@ public class BidiMessagingProtocalImp implements BidiMessagingProtocol<Packet> {
                         break;
                     case 2:
                         WRQ WRQPack = (WRQ) message;
-                        File f = new File("/Files/" + WRQPack.getFileName());
+                        File f = new File("Files/" + WRQPack.getFileName());
                         try {
                             boolean isCreated;
                             synchronized (activeClients) {
@@ -100,7 +100,7 @@ public class BidiMessagingProtocalImp implements BidiMessagingProtocol<Packet> {
                         writeDataPacks.add(DATAPack.getData());
                         connections.send(connectionId, new ACK(DATAPack.getBlock()));
                         if (DATAPack.getPacketSize() != 512) {
-                            try (FileOutputStream fos = new FileOutputStream("/Files/" + fileName)) {
+                            try (FileOutputStream fos = new FileOutputStream("Files/" + fileName)) {
                                 fos.write(concateBytesArray(writeDataPacks));
                                 connections.send(connectionId, new BCAST(true, fileName));
                             } catch (FileNotFoundException e) {
@@ -117,22 +117,23 @@ public class BidiMessagingProtocalImp implements BidiMessagingProtocol<Packet> {
                         break;
                     case 6:
                         String result = "";
-                        File folder = new File("/Files");
+                        File folder = new File("Files");
                         File[] listOfFiles = folder.listFiles();
                         if (listOfFiles != null && listOfFiles.length > 0) {
+                            LinkedBlockingQueue<byte[]> queue = new LinkedBlockingQueue<>();
                             for (int i = 0; i < listOfFiles.length; i++) {
                                 if (listOfFiles[i].isFile()) {
-                                    result = result + listOfFiles[i].getName() + '\0';
+                                    queue.add((listOfFiles[i].getName() + "\0").getBytes());
                                 }
                             }
-                            byte[] resultBytes = result.getBytes();
+                            byte[] resultBytes = concateBytesArray(queue);
                             sendDataPacks(resultBytes);
                         }
                         break;
                     case 8:
                         DELRQ DELRQPack = (DELRQ) message;
                         try {
-                            String tempFile = "/Files/" + DELRQPack.getFileName();
+                            String tempFile = "Files/" + DELRQPack.getFileName();
                             File fileTemp = new File(tempFile);
                             boolean canDelete;
                             synchronized (activeClients) {
@@ -186,7 +187,7 @@ public class BidiMessagingProtocalImp implements BidiMessagingProtocol<Packet> {
 
     private void sendDataPacks(byte[] data) {
         int dataLength = data.length;
-        short packetCount = 0;
+        short packetCount = 1;
         readDataPacks.clear();
         while (dataLength > 512) {
             byte[] ArrayToSend = Arrays.copyOfRange(data, 512 * packetCount, 512 * (packetCount + 1));
@@ -194,7 +195,7 @@ public class BidiMessagingProtocalImp implements BidiMessagingProtocol<Packet> {
             packetCount++;
             dataLength = dataLength - 512;
         }
-        byte[] ArrayToSend = Arrays.copyOfRange(data, data.length - dataLength, dataLength);
+        byte[] ArrayToSend = Arrays.copyOfRange(data, data.length - dataLength, data.length);
         readDataPacks.add(new DATA((short) dataLength, packetCount, ArrayToSend));
         connections.send(connectionId, readDataPacks.poll());
     }
