@@ -18,12 +18,18 @@ public class MessageEncoderDecoderImp implements MessageEncoderDecoder<Packet> {
             case -1:
                 if (opCounter > 0) {
                     pushByte(nextByte);
+                    System.out.println("push byte");
                     opCounter--;
                 }
-                if (opCounter == 0)
+                if (opCounter == 0) {
                     packetNum = bytesToShort(Arrays.copyOfRange(bytes, 0, 2));
-                if (packetNum == 6 || packetNum == 10)
-                    return popPacket();
+                    System.out.println("packet number " + packetNum);
+                    if (packetNum == 6 || packetNum == 10)
+                        return popPacket();
+                    else if(packetNum != 1 && packetNum != 2 && packetNum != 7 && packetNum != 8 && packetNum != 3 && packetNum != 4)
+                        return popPacket();
+                }
+                break;
             case 1:
             case 2:
             case 7:
@@ -32,6 +38,7 @@ public class MessageEncoderDecoderImp implements MessageEncoderDecoder<Packet> {
                     return popPacket();
                 }
                 pushByte(nextByte);
+                break;
             case 3:
                 if (opCounter < 2 && !dataBool) {
                     pushByte(nextByte);
@@ -48,17 +55,16 @@ public class MessageEncoderDecoderImp implements MessageEncoderDecoder<Packet> {
                     if (opCounter == 0)
                         return popPacket();
                 }
+                break;
             case 4:
                 pushByte(nextByte);
                 opCounter++;
                 if (opCounter == 2)
                     return popPacket();
+                break;
         }
         return null;
     }
-
-
-
 
     @Override
     public byte[] encode(Packet message) {
@@ -110,9 +116,9 @@ public class MessageEncoderDecoderImp implements MessageEncoderDecoder<Packet> {
 
         switch (opCode) {
             case 1:
-                return new RRQ(new String(bytes, 2, tempLen - 3, StandardCharsets.UTF_8));
+                return new RRQ(new String(bytes, 2, tempLen - 2, StandardCharsets.UTF_8));
             case 2:
-                return new WRQ(new String(bytes, 2, tempLen - 3, StandardCharsets.UTF_8));
+                return new WRQ(new String(bytes, 2, tempLen - 2, StandardCharsets.UTF_8));
             case 3:
                 short packetSize = bytesToShort(Arrays.copyOfRange(bytes,2,4));
                 short block = bytesToShort(Arrays.copyOfRange(bytes,4,6));
@@ -120,30 +126,12 @@ public class MessageEncoderDecoderImp implements MessageEncoderDecoder<Packet> {
                 return new DATA(packetSize,block,data);
             case 4:
                 return new ACK(bytesToShort(Arrays.copyOfRange(bytes,2,4)));
-            case 5:
-                short errorCode = bytesToShort(Arrays.copyOfRange(bytes,2,4));
-                String errorMessage = new String(bytes, 4, tempLen - 5, StandardCharsets.UTF_8);
-                return new ERROR(errorCode,errorMessage);
             case 6:
                 return new DIRQ();
             case 7:
-                return new LOGRQ(new String(bytes, 2, tempLen - 3, StandardCharsets.UTF_8));
+                return new LOGRQ(new String(bytes, 2, tempLen - 2, StandardCharsets.UTF_8));
             case 8:
-                return new DELRQ(new String(bytes, 2, tempLen - 3, StandardCharsets.UTF_8));
-            case 9:
-                String bool = new String(bytes, 2, 1, StandardCharsets.UTF_8);
-                boolean delOrAdd;
-                if(bool == "1"){
-                    delOrAdd = true;
-                }
-                else if(bool == "0"){
-                    delOrAdd = false;
-                }
-                else{
-                    throw new IllegalArgumentException("BCAST Add or Del is not boolean");
-                }
-                String fileName = new String(bytes, 3, tempLen - 4, StandardCharsets.UTF_8);
-                return new BCAST(delOrAdd,fileName);
+                return new DELRQ(new String(bytes, 2, tempLen - 2, StandardCharsets.UTF_8));
             case 10:
                 return new DISC();
             default:
