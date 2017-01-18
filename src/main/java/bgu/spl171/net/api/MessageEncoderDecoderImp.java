@@ -9,7 +9,7 @@ import java.util.Arrays;
 
 public class MessageEncoderDecoderImp implements MessageEncoderDecoder<Packet> {
     private byte[] bytes = new byte[1 << 10];
-    private int len = 0, opCounter=2;
+    private int len = 0, opCounter = 2, dataSizeCounter = 2, dataCounter = 0;
     private short packetNum =-1;
     Boolean dataBool = false;
     @Override
@@ -18,7 +18,6 @@ public class MessageEncoderDecoderImp implements MessageEncoderDecoder<Packet> {
             case -1:
                 if (opCounter > 0) {
                     pushByte(nextByte);
-                    System.out.println("push byte");
                     opCounter--;
                 }
                 if (opCounter == 0) {
@@ -40,19 +39,18 @@ public class MessageEncoderDecoderImp implements MessageEncoderDecoder<Packet> {
                 pushByte(nextByte);
                 break;
             case 3:
-                if (opCounter < 2 && !dataBool) {
+                if (dataSizeCounter > 0){
                     pushByte(nextByte);
-                    opCounter++;
+                    dataSizeCounter--;
                 }
-                if (opCounter == 2 && !dataBool) {
-                    opCounter = bytesToShort(Arrays.copyOfRange(bytes, 0, 2)) + 2;
-                    dataBool = true;
+                if (dataSizeCounter == 0){
+                    dataCounter = bytesToShort(Arrays.copyOfRange(bytes, 2, 4)) + 2;
+                    dataSizeCounter--;
                 }
-                else
-                {
+                else if (dataSizeCounter < 0 && dataCounter > 0){
                     pushByte(nextByte);
-                    opCounter--;
-                    if (opCounter == 0)
+                    dataCounter--;
+                    if (dataCounter == 0)
                         return popPacket();
                 }
                 break;
@@ -110,8 +108,10 @@ public class MessageEncoderDecoderImp implements MessageEncoderDecoder<Packet> {
         short opCode = bytesToShort(Arrays.copyOfRange(bytes,0,2));
         int tempLen = len;
         len = 0;
-        opCounter =2;
+        opCounter = 2;
         packetNum = -1;
+        dataSizeCounter = 2;
+        dataCounter = 0;
         dataBool = false;
 
         switch (opCode) {

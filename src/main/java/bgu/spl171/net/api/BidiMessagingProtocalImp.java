@@ -47,7 +47,7 @@ public class BidiMessagingProtocalImp implements BidiMessagingProtocol<Packet> {
             connections.send(connectionId, new ERROR((short) 4, "Illegal TFTP operation - Unknown Opcode."));
         } else if (message.getOpCode() == 7) {
             LOGRQ LOGRQPack = (LOGRQ) message;
-            if (activeClients.containsValue(LOGRQPack.getUserName())) {
+            if (activeClients.containsValue(LOGRQPack.getUserName()) || activeClients.containsKey(connectionId)) {
                 connections.send(connectionId, new ERROR((short) 7, "User already logged in - Login username already connected."));
             } else {
                 activeClients.put(connectionId, LOGRQPack.getUserName());
@@ -79,6 +79,7 @@ public class BidiMessagingProtocalImp implements BidiMessagingProtocol<Packet> {
                         WRQ WRQPack = (WRQ) message;
                         File f = new File("Files/" + WRQPack.getFileName());
                         try {
+                            writeDataPacks.clear();
                             boolean isCreated;
                             synchronized (activeClients) {
                                 isCreated = !writingProcess.contains(WRQPack.getFileName()) && f.createNewFile();
@@ -104,6 +105,7 @@ public class BidiMessagingProtocalImp implements BidiMessagingProtocol<Packet> {
                                 fos.write(concateBytesArray(writeDataPacks));
                                 for(ConcurrentHashMap.Entry<Integer,String> client : activeClients.entrySet())
                                     connections.send(client.getKey(), new BCAST(true, fileName));
+                                writingProcess.remove(fileName);
                             } catch (FileNotFoundException e) {
                                 e.printStackTrace();
                                 throw new FileNotFoundException(e.getMessage());
@@ -113,6 +115,8 @@ public class BidiMessagingProtocalImp implements BidiMessagingProtocol<Packet> {
                         }
                         break;
                     case 4:
+                        ACK ACKPack = (ACK) message;
+                        System.out.println("ACK " + ACKPack.getBlock());
                         if (readDataPacks.size() > 0)
                             connections.send(connectionId, readDataPacks.poll());
                         break;
@@ -127,6 +131,12 @@ public class BidiMessagingProtocalImp implements BidiMessagingProtocol<Packet> {
                                     queue.add((listOfFiles[i].getName() + "\0").getBytes());
                                 }
                             }
+                            byte[] resultBytes = concateBytesArray(queue);
+                            sendDataPacks(resultBytes);
+                        }
+                        if(listOfFiles != null && listOfFiles.length == 0){
+                            LinkedBlockingQueue<byte[]> queue = new LinkedBlockingQueue<>();
+                            queue.add(("There is no files" + "\0").getBytes());
                             byte[] resultBytes = concateBytesArray(queue);
                             sendDataPacks(resultBytes);
                         }

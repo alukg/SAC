@@ -53,6 +53,7 @@ public interface Server<T> extends Closeable {
             Supplier<MessageEncoderDecoder<T>> encoderDecoderFactory) {
         return new Reactor<T>(nthreads, port, protocolFactory, encoderDecoderFactory);
     }
+
     public static void main(String[] args) {
         Supplier<BidiMessagingProtocol<Packet>> protocolFactory = () -> new BidiMessagingProtocalImp();
         Supplier<MessageEncoderDecoder<Packet>> encoderDecoderFactory = () -> new MessageEncoderDecoderImp();
