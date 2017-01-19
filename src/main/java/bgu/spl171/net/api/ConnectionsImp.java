@@ -4,14 +4,15 @@ import bgu.spl171.net.api.bidi.Connections;
 import bgu.spl171.net.srv.bidi.ConnectionHandler;
 
 import java.util.HashMap;
+import java.util.concurrent.ConcurrentHashMap;
 
 public class ConnectionsImp implements Connections {
-    private HashMap<Integer,ConnectionHandler> clients;
+    private ConcurrentHashMap<Integer,ConnectionHandler> clients;
     private int id = 1;
 
     public ConnectionsImp()
     {
-        clients = new HashMap<>();
+        clients = new ConcurrentHashMap<>();
     }
 
     @Override
@@ -36,17 +37,13 @@ public class ConnectionsImp implements Connections {
         clients.remove(connectionId);
     }
 
-    public HashMap<Integer,ConnectionHandler> getClients() {
-        return clients;
-    }
-
-    synchronized public int getID(){
+    synchronized private int getID(){
         return id++;
     }
 
     public int addConnection(ConnectionHandler ch){
         int num = getID();
-        getClients().put(num,ch);
+        clients.put(num,ch);
         return num;
     }
 }

@@ -23,7 +23,7 @@ public class BidiMessagingProtocalImp implements BidiMessagingProtocol<Packet> {
 
     private boolean shouldTerminate = false;
 
-    private ConnectionsImp connections;
+    private Connections connections;
     private int connectionId;
     private static ConcurrentHashMap<Integer, String> activeClients = new ConcurrentHashMap<>();
     private static ConcurrentLinkedQueue<String> writingProcess = new ConcurrentLinkedQueue<>();
@@ -33,8 +33,8 @@ public class BidiMessagingProtocalImp implements BidiMessagingProtocol<Packet> {
     private String fileName;
 
     @Override
-    public void start(int connectionId, Connections<Packet> connections) {
-        this.connections = (ConnectionsImp) connections;
+    public void start(int connectionId, Connections connections) {
+        this.connections = connections;
         this.connectionId = connectionId;
         readDataPacks = new LinkedBlockingQueue<>();
         writeDataPacks = new LinkedBlockingQueue<>();
@@ -42,7 +42,6 @@ public class BidiMessagingProtocalImp implements BidiMessagingProtocol<Packet> {
 
     @Override
     public void process(Packet message) throws FileNotFoundException {
-        System.out.println("process message");
         if (message == null) {
             connections.send(connectionId, new ERROR((short) 4, "Illegal TFTP operation - Unknown Opcode."));
         } else if (message.getOpCode() == 7) {
@@ -116,7 +115,6 @@ public class BidiMessagingProtocalImp implements BidiMessagingProtocol<Packet> {
                         break;
                     case 4:
                         ACK ACKPack = (ACK) message;
-                        System.out.println("ACK " + ACKPack.getBlock());
                         if (readDataPacks.size() > 0)
                             connections.send(connectionId, readDataPacks.poll());
                         break;
@@ -128,7 +126,13 @@ public class BidiMessagingProtocalImp implements BidiMessagingProtocol<Packet> {
                             LinkedBlockingQueue<byte[]> queue = new LinkedBlockingQueue<>();
                             for (int i = 0; i < listOfFiles.length; i++) {
                                 if (listOfFiles[i].isFile()) {
-                                    queue.add((listOfFiles[i].getName() + "\0").getBytes());
+                                    byte[] file = listOfFiles[i].getName().getBytes();
+                                    byte[] connected = new byte[file.length+1];
+                                    for(int j=0;j<file.length;j++){
+                                        connected[j]=file[j];
+                                    }
+                                    connected[connected.length-1] = '\n';
+                                    queue.add(connected);
                                 }
                             }
                             byte[] resultBytes = concateBytesArray(queue);
@@ -136,7 +140,13 @@ public class BidiMessagingProtocalImp implements BidiMessagingProtocol<Packet> {
                         }
                         if(listOfFiles != null && listOfFiles.length == 0){
                             LinkedBlockingQueue<byte[]> queue = new LinkedBlockingQueue<>();
-                            queue.add(("There is no files" + "\0").getBytes());
+                            byte[] file = "There is no files".getBytes();
+                            byte[] connected = new byte[file.length+1];
+                            for(int j=0;j<file.length;j++){
+                                connected[j]=file[j];
+                            }
+                            connected[connected.length-1] = '\n';
+                            queue.add(file);
                             byte[] resultBytes = concateBytesArray(queue);
                             sendDataPacks(resultBytes);
                         }
@@ -153,7 +163,7 @@ public class BidiMessagingProtocalImp implements BidiMessagingProtocol<Packet> {
                             if (canDelete) {
                                 connections.send(connectionId, new ACK((short) 0));
                                 for(ConcurrentHashMap.Entry<Integer,String> client : activeClients.entrySet())
-                                    connections.send(client.getKey(), new BCAST(false, fileName));
+                                    connections.send(client.getKey(), new BCAST(false,DELRQPack.getFileName()));
                             } else {
                                 connections.send(connectionId, new ERROR((short) 1, "File not found - DELRQ of non-existing file."));
                             }

@@ -1,17 +1,15 @@
 package bgu.spl171.net.api;
 
 import bgu.spl171.net.api.packets.*;
-import com.sun.deploy.util.ArrayUtil;
-
-import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 
 public class MessageEncoderDecoderImp implements MessageEncoderDecoder<Packet> {
     private byte[] bytes = new byte[1 << 10];
     private int len = 0, opCounter = 2, dataSizeCounter = 2, dataCounter = 0;
-    private short packetNum =-1;
+    private short packetNum = -1;
     Boolean dataBool = false;
+
     @Override
     public Packet decodeNextByte(byte nextByte) {
         switch (packetNum) {
@@ -22,10 +20,9 @@ public class MessageEncoderDecoderImp implements MessageEncoderDecoder<Packet> {
                 }
                 if (opCounter == 0) {
                     packetNum = bytesToShort(Arrays.copyOfRange(bytes, 0, 2));
-                    System.out.println("packet number " + packetNum);
                     if (packetNum == 6 || packetNum == 10)
                         return popPacket();
-                    else if(packetNum != 1 && packetNum != 2 && packetNum != 7 && packetNum != 8 && packetNum != 3 && packetNum != 4)
+                    else if (packetNum != 1 && packetNum != 2 && packetNum != 7 && packetNum != 8 && packetNum != 3 && packetNum != 4)
                         return popPacket();
                 }
                 break;
@@ -33,23 +30,23 @@ public class MessageEncoderDecoderImp implements MessageEncoderDecoder<Packet> {
             case 2:
             case 7:
             case 8:
-                if (nextByte == '0') {
+                if (nextByte == '\0') {
                     return popPacket();
                 }
                 pushByte(nextByte);
                 break;
             case 3:
-                if (dataSizeCounter > 0){
+                if (dataSizeCounter > 0) {
                     pushByte(nextByte);
                     dataSizeCounter--;
                 }
-                if (dataSizeCounter == 0){
+                if (dataSizeCounter == 0) {
                     dataCounter = bytesToShort(Arrays.copyOfRange(bytes, 2, 4)) + 2;
                     dataSizeCounter--;
-                }
-                else if (dataSizeCounter < 0 && dataCounter > 0){
+                } else if (dataSizeCounter < 0 && dataCounter > 0) {
                     pushByte(nextByte);
                     dataCounter--;
+
                     if (dataCounter == 0)
                         return popPacket();
                 }
@@ -68,30 +65,32 @@ public class MessageEncoderDecoderImp implements MessageEncoderDecoder<Packet> {
     public byte[] encode(Packet message) {
         byte[] result = shortToBytes(message.getOpCode());
         byte[] ans;
+        byte[] zero = new byte[1];
+        zero[0] = ((byte)'\0');
 
-        switch (message.getOpCode()){
+        switch (message.getOpCode()) {
             case 3:
-                DATA DATAPack = (DATA)message;
-                result = connectArrays(result,shortToBytes(DATAPack.getPacketSize()));
-                result = connectArrays(result,shortToBytes(DATAPack.getBlock()));
-                return connectArrays(result,DATAPack.getData());
+                DATA DATAPack = (DATA) message;
+                result = connectArrays(result, shortToBytes(DATAPack.getPacketSize()));
+                result = connectArrays(result, shortToBytes(DATAPack.getBlock()));
+                return connectArrays(result, DATAPack.getData());
             case 4:
-                ACK ACKPack = (ACK)message;
-                return connectArrays(result,shortToBytes(ACKPack.getBlock()));
+                ACK ACKPack = (ACK) message;
+                return connectArrays(result, shortToBytes(ACKPack.getBlock()));
             case 5:
-                ERROR ErrorPack = (ERROR)message;
-                byte[] tempErrorArr = connectArrays(result,shortToBytes(ErrorPack.getErrorCode()));
-                ans = connectArrays(tempErrorArr,ErrorPack.getErrorMessage().getBytes());
-                return connectArrays(ans,"0".getBytes());
+                ERROR ErrorPack = (ERROR) message;
+                byte[] tempErrorArr = connectArrays(result, shortToBytes(ErrorPack.getErrorCode()));
+                ans = connectArrays(tempErrorArr, ErrorPack.getErrorMessage().getBytes());
+                return connectArrays(ans, zero);
             case 9:
-                BCAST BCASTPack = (BCAST)message;
+                BCAST BCASTPack = (BCAST) message;
                 byte[] tempBCASTArr;
-                if(BCASTPack.isDelOrAdd())
-                     tempBCASTArr = connectArrays(result,"1".getBytes());
+                if (BCASTPack.isDelOrAdd())
+                    tempBCASTArr = connectArrays(result, "1".getBytes());
                 else
-                    tempBCASTArr = connectArrays(result,"0".getBytes());
-                ans = connectArrays(tempBCASTArr,BCASTPack.getFileName().getBytes());
-                return connectArrays(ans,"0".getBytes());
+                    tempBCASTArr = connectArrays(result, "0".getBytes());
+                ans = connectArrays(tempBCASTArr, BCASTPack.getFileName().getBytes());
+                return connectArrays(ans, zero);
             default:
                 return null;
         }
@@ -105,7 +104,7 @@ public class MessageEncoderDecoderImp implements MessageEncoderDecoder<Packet> {
     }
 
     private Packet popPacket() {
-        short opCode = bytesToShort(Arrays.copyOfRange(bytes,0,2));
+        short opCode = bytesToShort(Arrays.copyOfRange(bytes, 0, 2));
         int tempLen = len;
         len = 0;
         opCounter = 2;
@@ -120,12 +119,12 @@ public class MessageEncoderDecoderImp implements MessageEncoderDecoder<Packet> {
             case 2:
                 return new WRQ(new String(bytes, 2, tempLen - 2, StandardCharsets.UTF_8));
             case 3:
-                short packetSize = bytesToShort(Arrays.copyOfRange(bytes,2,4));
-                short block = bytesToShort(Arrays.copyOfRange(bytes,4,6));
-                byte[] data = Arrays.copyOfRange(bytes,6,bytes.length-1);
-                return new DATA(packetSize,block,data);
+                short packetSize = bytesToShort(Arrays.copyOfRange(bytes, 2, 4));
+                short block = bytesToShort(Arrays.copyOfRange(bytes, 4, 6));
+                byte[] data = Arrays.copyOfRange(bytes, 6, 6 + packetSize);
+                return new DATA(packetSize, block, data);
             case 4:
-                return new ACK(bytesToShort(Arrays.copyOfRange(bytes,2,4)));
+                return new ACK(bytesToShort(Arrays.copyOfRange(bytes, 2, 4)));
             case 6:
                 return new DIRQ();
             case 7:
@@ -153,14 +152,14 @@ public class MessageEncoderDecoderImp implements MessageEncoderDecoder<Packet> {
         return bytesArr;
     }
 
-    private byte[] connectArrays(byte[] a, byte[] b){
+    private byte[] connectArrays(byte[] a, byte[] b) {
         byte[] result = new byte[a.length + b.length];
-        for(int i=0;i<a.length;i++){
+        for (int i = 0; i < a.length; i++) {
             result[i] = a[i];
         }
         int j = a.length;
-        for(int i=0;i<b.length;i++){
-            result[i+j] = b[i];
+        for (int i = 0; i < b.length; i++) {
+            result[i + j] = b[i];
         }
         return result;
     }

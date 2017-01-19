@@ -23,7 +23,7 @@ public class Reactor<T> implements Server<T> {
     private final Supplier<MessageEncoderDecoder<T>> readerFactory;
     private final ActorThreadPool pool;
     private Selector selector;
-    ConnectionsImp cons;
+    private ConnectionsImp cons;
 
     private Thread selectorThread;
     private final ConcurrentLinkedQueue<Runnable> selectorTasks = new ConcurrentLinkedQueue<>();
@@ -96,15 +96,18 @@ public class Reactor<T> implements Server<T> {
         }
     }
 
-
     private void handleAccept(ServerSocketChannel serverChan, Selector selector) throws IOException {
         SocketChannel clientChan = serverChan.accept();
         clientChan.configureBlocking(false);
+        BidiMessagingProtocol msgProc = protocolFactory.get();
         final NonBlockingConnectionHandler handler = new NonBlockingConnectionHandler(
                 readerFactory.get(),
-                protocolFactory.get(),
+                msgProc,
                 clientChan,
                 this);
+
+        int conId = cons.addConnection(handler);
+        msgProc.start(conId,cons);
 
         clientChan.register(selector, SelectionKey.OP_READ, handler);
     }
