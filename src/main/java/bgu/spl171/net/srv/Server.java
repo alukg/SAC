@@ -54,11 +54,4 @@ public interface Server<T> extends Closeable {
         return new Reactor<T>(nthreads, port, protocolFactory, encoderDecoderFactory);
     }
 
-    public static void main(String[] args) {
-        Supplier<BidiMessagingProtocol<Packet>> protocolFactory = () -> new BidiMessagingProtocalImp();
-        Supplier<MessageEncoderDecoder<Packet>> encoderDecoderFactory = () -> new MessageEncoderDecoderImp();
-        Server<Packet> tpc = threadPerClient(7777,protocolFactory ,encoderDecoderFactory);
-        tpc.serve();
-    }
-
 }
