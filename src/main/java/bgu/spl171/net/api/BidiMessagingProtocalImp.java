@@ -210,16 +210,16 @@ public class BidiMessagingProtocalImp implements BidiMessagingProtocol<Packet> {
 
     private void sendDataPacks(byte[] data) {
         int dataLength = data.length;
-        short packetCount = 1;
+        short packetCount = 0;
         readDataPacks.clear();
         while (dataLength > 512) {
             byte[] ArrayToSend = Arrays.copyOfRange(data, 512 * packetCount, 512 * (packetCount + 1));
-            readDataPacks.add(new DATA((short) 512, packetCount, ArrayToSend));
+            readDataPacks.add(new DATA((short) 512, (short)(packetCount + 1), ArrayToSend));
             packetCount++;
             dataLength = dataLength - 512;
         }
         byte[] ArrayToSend = Arrays.copyOfRange(data, data.length - dataLength, data.length);
-        readDataPacks.add(new DATA((short) dataLength, packetCount, ArrayToSend));
+        readDataPacks.add(new DATA((short) dataLength, (short)(packetCount + 1), ArrayToSend));
         connections.send(connectionId, readDataPacks.poll());
     }
 
